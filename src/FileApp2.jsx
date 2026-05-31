@@ -16,7 +16,7 @@ const handleUpload = async () => {
   formData.append("file", file); // ✅ important
 
   try {
-   const res = await fetch("http://127.0.0.1:8000/uploadRes", {
+   const res = await fetch("https://ai-interview-backend-bj0k.onrender.com/uploadRes", {
   method: "POST",
   body: formData,
 });
@@ -60,7 +60,7 @@ a.click();
 
   try {
     
-    const res = await fetch("http://127.0.0.1:8000/pasteResume", {
+    const res = await fetch("https://ai-interview-backend-bj0k.onrender.com/pasteResume", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

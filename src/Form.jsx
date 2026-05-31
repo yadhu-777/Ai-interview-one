@@ -8,7 +8,7 @@ export default function Form(){
          setText2("");
         SetShow(prev=>!prev);
         setLoading(prev=>!prev);
-        fetch(" http://127.0.0.1:8000/QuickPrep", {
+        fetch(" https://ai-interview-backend-bj0k.onrender.com/QuickPrep", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

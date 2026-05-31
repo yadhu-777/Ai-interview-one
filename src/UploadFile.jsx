@@ -14,7 +14,7 @@ setLoading(prev=>!prev);
   formData.append("file", file);
 
     try {
-      const res = await fetch("http://127.0.0.1:8000/upload", {
+      const res = await fetch("https://ai-interview-backend-bj0k.onrender.com/upload", {
         method: "POST",
         body: formData,
       });
