@@ -1,26 +1,23 @@
-
-
 import { useContext, useRef, useState, useEffect } from "react";
 import Mycontext from "../Context";
 import Form2 from "./From2";
 import { ToastContainer, toast } from "react-toastify";
 
- 
 export default function Interview() {
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [showStart, setShowStart] = useState(false);
- 
-  const [timeLeft, setTimeLeft] = useState(300); // ⏱️ 5 min
+
+  const [timeLeft, setTimeLeft] = useState(300);
   const timerRef = useRef(null);
- 
+
   const [feedbackData, setFeedbackData] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
- const [showTip, setShowTip] = useState(true);
-  const [convo, setConvo] = useState([{ user: "", ai: "" }]);
- 
+  const [showTip, setShowTip] = useState(true);
+  const [convo, setConvo] = useState([]);
+
   const {
     showDomain,
     setShowDomain,
@@ -28,17 +25,20 @@ export default function Interview() {
     interviewActive,
     setInterviewActive,
   } = useContext(Mycontext);
- 
+
   const recognitionRef = useRef(null);
- 
+
+  // Auto-hide tooltip after 2 seconds
+  useEffect(() => {
+    const timer = setTimeout(() => setShowTip(false), 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (!interviewActive && showStart && !showModal) {
       endInterview();
     }
-  
   }, [interviewActive]);
- 
 
   useEffect(() => {
     const handleBeforeUnload = (e) => {
@@ -50,23 +50,20 @@ export default function Interview() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [showStart]);
- 
+
   const formatTime = (time) => {
     const min = Math.floor(time / 60);
     const sec = time % 60;
     return `${min}:${sec < 10 ? "0" : ""}${sec}`;
   };
- 
 
   useEffect(() => {
     if (timeLeft === 60) {
       toast("⚠️ 1 minute left!", { position: "top-center" });
     }
   }, [timeLeft]);
- 
 
   const startListening = () => {
-  
     if (!domainText) {
       toast("⚠️ Domain not selected! Please select a domain before starting.", {
         position: "top-center",
@@ -75,13 +72,12 @@ export default function Interview() {
       });
       return;
     }
- 
+
     if (isSpeaking) return;
- 
+
     setShowStart(true);
-    setInterviewActive(true); // 🔔 tell Navbar interview has started
- 
-   
+    setInterviewActive(true);
+
     if (!timerRef.current) {
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
@@ -95,22 +91,22 @@ export default function Interview() {
         });
       }, 1000);
     }
- 
+
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
- 
+
     if (!SpeechRecognition) {
       alert("Speech Recognition not supported");
       return;
     }
- 
+
     const recognition = new SpeechRecognition();
     recognition.lang = "en-US";
     recognition.continuous = true;
     recognition.interimResults = true;
- 
+
     recognition.onstart = () => setListening(true);
- 
+
     recognition.onresult = (event) => {
       let transcript = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -121,38 +117,37 @@ export default function Interview() {
       }
       setText(transcript);
     };
- 
+
     recognition.onend = () => setListening(false);
     recognition.start();
     recognitionRef.current = recognition;
   };
- 
- 
+
   const sendAnswer = async (answer) => {
     try {
       recognitionRef.current?.stop();
       setListening(false);
- 
+
       setConvo((prev) => [...prev, { user: answer }]);
- 
+
       const res = await fetch("https://ai-interview-backend-bj0k.onrender.com/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ answer, domainText }),
       });
- 
+
       const data = await res.json();
       if (!data.audio) return;
- 
+
       setConvo((prev) => [...prev, { ai: data.reply }]);
- 
+
       const audioBytes = Uint8Array.from(atob(data.audio), (c) =>
         c.charCodeAt(0)
       );
       const blob = new Blob([audioBytes], { type: "audio/mpeg" });
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
- 
+
       audio.onplay = () => setIsSpeaking(true);
       await audio.play();
       audio.onended = () => {
@@ -163,9 +158,11 @@ export default function Interview() {
       console.error(err);
     }
   };
- 
 
   const endInterview = async () => {
+    // Guard: don't call feedback if no real conversation happened
+    if (convo.length === 0) return;
+
     try {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -173,18 +170,17 @@ export default function Interview() {
       setListening(false);
       setIsSpeaking(false);
       setShowStart(false);
-      setInterviewActive(false); 
+      setInterviewActive(false);
       setLoadingFeedback(true);
       setShowModal(true);
- 
+
       const res = await fetch("https://ai-interview-backend-bj0k.onrender.com/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ convo, domainText }),
       });
- 
+
       const data = await res.json();
-      // Expected: { feedback: "...", rating: 8 }
       setFeedbackData(data);
       setLoadingFeedback(false);
     } catch (err) {
@@ -192,18 +188,16 @@ export default function Interview() {
       setLoadingFeedback(false);
     }
   };
- 
+
   function ShowDomain() {
     setShowDomain((prev) => !prev);
   }
- 
-  
+
   const getRatingColor = (rating) => {
     if (rating >= 8) return "rating-green";
     if (rating >= 5) return "rating-yellow";
     return "rating-red";
   };
- 
 
   const getRatingLabel = (rating) => {
     if (rating >= 9) return "Excellent! 🏆";
@@ -211,7 +205,7 @@ export default function Interview() {
     if (rating >= 5) return "Average 📈";
     return "Needs Work 💪";
   };
- 
+
   return (
     <div className="interview">
       <ToastContainer />
@@ -227,20 +221,20 @@ export default function Interview() {
             ) : feedbackData ? (
               <>
                 <h2 className="modal-title">Interview Complete 🎉</h2>
- 
+
                 <div className={`rating-circle ${getRatingColor(feedbackData.rating)}`}>
                   <span className="rating-number">{feedbackData.rating}</span>
                   <span className="rating-denominator">/10</span>
                 </div>
- 
+
                 <p className={`rating-label ${getRatingColor(feedbackData.rating)}`}>
                   {getRatingLabel(feedbackData.rating)}
                 </p>
- 
+
                 <div className="feedback-box">
                   <p className="feedback-text">{feedbackData.feedback}</p>
                 </div>
- 
+
                 <button
                   className="close-btn"
                   onClick={() => {
@@ -257,31 +251,21 @@ export default function Interview() {
           </div>
         </div>
       )}
- 
+
       <div className="innerInterview">
         <div className="innerInterview1">
- 
-         
+
           <h3 className={`timer ${timeLeft <= 60 ? "timer-warning" : ""}`}>
             ⏱️ {formatTime(timeLeft)}
           </h3>
- 
-      
+
           {showDomain && !showStart && <Form2 />}
- 
-      
+
           {!showStart && (
             <div className="btnstart">
- 
-            
               <button className="btn btn-danger" onClick={ShowDomain}>
                 Domain
               </button>
- 
-             
-             
- 
-             
               <button
                 className="btn btn-danger"
                 onClick={startListening}
@@ -289,7 +273,6 @@ export default function Interview() {
               >
                 Start 🎙️
               </button>
- 
             </div>
           )}
 
@@ -300,41 +283,43 @@ export default function Interview() {
               </button>
             </div>
           )}
- 
+
           <h2>AI Mock Interview</h2>
- 
-          {/* Continue button — also blocked if no domain */}
-         <div className="mic-wrapper">
-  <div className="mic-tooltip">
-    🎙️ Click continue to speak
-    <span className="tooltip-arrow" />
-  </div>
-  <button
-    className="btn btn-primary"
-    onClick={startListening}
-    disabled={listening || isSpeaking || !domainText}
-  >
-    {listening ? "Listening..." : "Continue"}
-  </button>
-</div>
+
+          <div className="mic-wrapper">
+            {showTip && !showStart && (
+              <div className="mic-tooltip">
+                🎙️ Click continue to speak
+                <span className="tooltip-arrow" />
+              </div>
+            )}
+            <button
+              className="btn btn-primary"
+              onClick={startListening}
+              disabled={listening || isSpeaking || !domainText}
+            >
+              {listening ? "Listening..." : "Continue"}
+            </button>
+          </div>
+
           <div className="text">
             {text || "Your speech will appear here..."}
           </div>
- 
+
           <div className="avatar-container">
             {isSpeaking && <div className="pulse-ring2"></div>}
             {isSpeaking && <div className="pulse-ring2 delay-1"></div>}
- 
+
             <img
               src="/av1.png"
               alt="AI Avatar"
               className={isSpeaking ? "avatar talking" : "avatar"}
             />
- 
+
             {isSpeaking && <div className="wave"></div>}
           </div>
         </div>
- 
+
         <div className="innerInterview2">
           <div className="chat-box">
             {convo.map((c, i) => (
