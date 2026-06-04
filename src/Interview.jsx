@@ -15,7 +15,7 @@ export default function Interview() {
   const [feedbackData, setFeedbackData] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
-
+const [showTip, setShowTip] = useState(true);
   // FIX 1: Start with empty array instead of [{ user: "", ai: "" }]
   const [convo, setConvo] = useState([]);
   // FIX 2: Use a ref to always have the latest convo in async callbacks
@@ -329,7 +329,20 @@ export default function Interview() {
           )}
 
           <h2>AI Mock Interview</h2>
+{showTip && (
+  <div className="tip-banner">
+    <span>🎧 For best experience, use headphones and sit in a quiet environment</span>
+    <button className="tip-close" onClick={() => setShowTip(false)}>✕</button>
+  </div>
+)}
 
+<button
+  className="btn btn-primary mic-btn"
+  onClick={startListening}
+  disabled={listening || isSpeaking || !domainText}
+>
+  {listening ? "🔴 Listening..." : "🎙️ Click to Speak"}
+</button>
           <button
             className="btn btn-primary"
             onClick={startListening}
